@@ -208,10 +208,29 @@ def init_database():
 # AUTHENTICATION
 # ============================================================================
 
+# Global flag to track database initialization
+_db_initialized = False
+
+def ensure_database():
+    """Ensure database is initialized (thread-safe)"""
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            init_database()
+            _db_initialized = True
+            print("Database initialized on first request", flush=True)
+        except Exception as e:
+            print(f"Database initialization failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            # Don't set flag so it will retry on next request
+            raise
+
 def login_required(f):
     """Decorator to require user login"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        ensure_database()  # Ensure DB is initialized before checking auth
         user_id = session.get('user_id')
         
         if not user_id:
@@ -271,12 +290,29 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'server': 'Food Bank Database Server (Cloud)',
-        'database': DB_TYPE
+        'database': DB_TYPE,
+        'initialized': _db_initialized
     }), 200
+
+@app.route('/api/init', methods=['POST'])
+def manual_init():
+    """Manual database initialization endpoint"""
+    try:
+        init_database()
+        return jsonify({
+            'message': 'Database initialized successfully',
+            'database': DB_TYPE
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'database': DB_TYPE
+        }), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
     """User login"""
+    ensure_database()  # Ensure DB is initialized before login
     data = request.get_json()
     username = data.get('username', '').strip()
     password = data.get('password', '')
@@ -629,11 +665,6 @@ def search_clients():
 # ============================================================================
 
 if __name__ == '__main__':
-    print("Initializing Food Bank Database Server (Cloud Version)...")
-    print(f"Database type: {DB_TYPE}")
-    
-    init_database()
-    
     # Get configuration from environment
     host = os.getenv('HOST', '0.0.0.0')
     port = int(os.getenv('PORT', 5000))
