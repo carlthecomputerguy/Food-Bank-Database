@@ -1,0 +1,1 @@
+web: cd app && gunicorn food_bank_server_cloud:app
