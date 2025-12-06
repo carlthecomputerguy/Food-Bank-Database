@@ -628,24 +628,16 @@ def search_clients():
 # MAIN
 # ============================================================================
 
-# Database initialization flag
-_db_initialized = False
-
-@app.before_request
-def ensure_database_initialized():
-    """Ensure database is initialized before handling any request"""
-    global _db_initialized
-    if not _db_initialized:
-        print("Initializing Food Bank Database Server (Cloud Version)...")
-        print(f"Database type: {DB_TYPE}")
-        try:
-            init_database()
-            print("Database initialized successfully!")
-            _db_initialized = True
-        except Exception as e:
-            print(f"Database initialization error: {e}")
-            import traceback
-            traceback.print_exc()
+# Initialize database immediately when module loads
+try:
+    print("Initializing Food Bank Database Server (Cloud Version)...", flush=True)
+    print(f"Database type: {DB_TYPE}", flush=True)
+    init_database()
+    print("Database initialized successfully!", flush=True)
+except Exception as e:
+    print(f"Database initialization error: {e}", flush=True)
+    import traceback
+    traceback.print_exc()
 
 if __name__ == '__main__':
     # Get configuration from environment
