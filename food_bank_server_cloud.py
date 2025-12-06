@@ -271,7 +271,9 @@ def admin_required(f):
             fetch_one=True
         )
         
-        if not user or dict(user).get('Role') != 'admin':
+        user_dict = dict(user)
+        role = user_dict.get('Role') or user_dict.get('role')
+        if not user or role != 'admin':
             return jsonify({'error': 'Admin access required'}), 403
         
         request.current_user = dict(user)
@@ -332,29 +334,32 @@ def login():
     
     user_dict = dict(user)
     
-    if not check_password_hash(user_dict['PasswordHash'], password):
+    # Handle both SQLite (PasswordHash) and PostgreSQL (passwordhash) column names
+    password_hash = user_dict.get('PasswordHash') or user_dict.get('passwordhash')
+    if not check_password_hash(password_hash, password):
         return jsonify({'error': 'Invalid username or password'}), 401
     
     # Update last login
+    user_id = user_dict.get('UserID') or user_dict.get('userid')
     execute_query(
         'UPDATE Users SET LastLogin = ? WHERE UserID = ?' if DB_TYPE == 'sqlite'
         else 'UPDATE Users SET LastLogin = %s WHERE UserID = %s',
-        (datetime.now().isoformat(), user_dict['UserID']),
+        (datetime.now().isoformat(), user_id),
         commit=True
     )
     
     # Create session
     session.permanent = True
-    session['user_id'] = user_dict['UserID']
-    session['username'] = user_dict['Username']
-    session['role'] = user_dict['Role']
+    session['user_id'] = user_id
+    session['username'] = user_dict.get('Username') or user_dict.get('username')
+    session['role'] = user_dict.get('Role') or user_dict.get('role')
     
     return jsonify({
         'message': 'Login successful',
         'user': {
-            'username': user_dict['Username'],
-            'fullName': user_dict.get('FullName'),
-            'role': user_dict['Role']
+            'username': session['username'],
+            'fullName': user_dict.get('FullName') or user_dict.get('fullname'),
+            'role': session['role']
         }
     }), 200
 
@@ -370,10 +375,10 @@ def get_current_user():
     """Get current user info"""
     user = request.current_user
     return jsonify({
-        'username': user['Username'],
-        'fullName': user.get('FullName'),
-        'email': user.get('Email'),
-        'role': user['Role']
+        'username': user.get('Username') or user.get('username'),
+        'fullName': user.get('FullName') or user.get('fullname'),
+        'email': user.get('Email') or user.get('email'),
+        'role': user.get('Role') or user.get('role')
     }), 200
 
 # ============================================================================
@@ -486,7 +491,8 @@ def update_user(user_id):
 @admin_required
 def delete_user(user_id):
     """Delete user (admin only)"""
-    if user_id == request.current_user['UserID']:
+    current_user_id = request.current_user.get('UserID') or request.current_user.get('userid')
+    if user_id == current_user_id:
         return jsonify({'error': 'Cannot delete your own account'}), 400
     
     execute_query(
@@ -552,7 +558,7 @@ def create_client():
     values = []
     for field in fields:
         if field == 'CreatedBy':
-            values.append(request.current_user['UserID'])
+            values.append(request.current_user.get('UserID') or request.current_user.get('userid'))
         else:
             values.append(data.get(field))
     
