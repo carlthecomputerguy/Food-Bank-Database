@@ -4,8 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "gunicorn food_bank_server_cloud:app",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "startCommand": "gunicorn food_bank_server_cloud:app --bind 0.0.0.0:$PORT",
+    "restartPolicyType": "ON_FAILURE"
   }
 }
