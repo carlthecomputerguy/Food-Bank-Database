@@ -1,7 +1,8 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -r requirements.txt"
   },
   "deploy": {
     "startCommand": "gunicorn food_bank_server_cloud:app --bind 0.0.0.0:$PORT",
