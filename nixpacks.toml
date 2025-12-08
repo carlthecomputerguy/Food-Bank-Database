@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python310"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = "gunicorn food_bank_server_cloud:app --bind 0.0.0.0:$PORT"
