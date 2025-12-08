@@ -666,6 +666,77 @@ def search_clients():
         'count': len(clients)
     }), 200
 
+@app.route('/api/statistics', methods=['GET'])
+@login_required
+def get_statistics():
+    """Get statistics about client records"""
+    clients = execute_query('SELECT * FROM Clients', fetch_all=True)
+    clients_list = [dict(c) for c in clients]
+    
+    stats = {
+        'total_clients': len(clients_list),
+        'avg_household': 0,
+        'total_household': 0,
+        'certification': {},
+        'race': {},
+        'marital': {},
+        'veteran_yes': 0,
+        'veteran_no': 0,
+        'veteran_unknown': 0,
+        'heard': {}
+    }
+    
+    household_count = 0
+    for client in clients_list:
+        # Handle both uppercase (SQLite) and lowercase (PostgreSQL) keys
+        household = client.get('HouseholdTotal') or client.get('householdtotal')
+        if household:
+            try:
+                stats['total_household'] += int(household)
+                household_count += 1
+            except (ValueError, TypeError):
+                pass
+        
+        # Certification status
+        cert = client.get('CertificationStatus') or client.get('certificationstatus') or ''
+        for c in str(cert).split(','):
+            c = c.strip()
+            if c:
+                stats['certification'][c] = stats['certification'].get(c, 0) + 1
+        
+        # Race/Nationality
+        race = client.get('Nationality_Race') or client.get('nationality_race') or ''
+        for r in str(race).split(','):
+            r = r.strip()
+            if r:
+                stats['race'][r] = stats['race'].get(r, 0) + 1
+        
+        # Marital status
+        marital = client.get('MaritalStatus') or client.get('maritalstatus') or ''
+        if marital:
+            stats['marital'][marital] = stats['marital'].get(marital, 0) + 1
+        
+        # Veteran status
+        veteran = str(client.get('IsVeteran') or client.get('isveteran') or '').lower()
+        if veteran == 'yes':
+            stats['veteran_yes'] += 1
+        elif veteran == 'no':
+            stats['veteran_no'] += 1
+        else:
+            stats['veteran_unknown'] += 1
+        
+        # How heard about us
+        heard = client.get('HowHeardAboutUs') or client.get('howheardaboutus') or ''
+        for h in str(heard).split(','):
+            h = h.strip()
+            if h:
+                stats['heard'][h] = stats['heard'].get(h, 0) + 1
+    
+    if household_count > 0:
+        stats['avg_household'] = stats['total_household'] / household_count
+    
+    return jsonify(stats), 200
+
 # ============================================================================
 # MAIN
 # ============================================================================
